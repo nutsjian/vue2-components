@@ -8,36 +8,23 @@
       </div>
       <div class="marked markdown-body" v-html="markedHtml"></div>
     </div>
-    <div class="prismjs-content" v-html="prismjsHtml"></div>
   </div>
 </template>
 
 <script>
 import _CodeMirror from 'codemirror'
-import marked from 'marked'
-import Prism from 'prismjs'
-// 这里需要引入解析对应语言的 js，不然再markdown.parse的时候因为会调用 Prism.highlight(code, Prism.languages[lang], lang) 而报错
-// 这里直接通过下面的动态 require 引入了
-import 'prismjs/components/prism-java.js'
-// import 'prismjs/components/prism-shell.js'
+import Showdown from 'showdown'
+import showdownHighlight from 'showdown-highlight'
+import showdownEmoji from 'showdown-emoji'
+// import 'showdown-github'
 
 // 引入codemirror 样式
 import 'codemirror/lib/codemirror.css'
 
+import 'highlight.js/styles/atom-one-dark.css'
+
 // 引入github-markdown-css.css
 import 'github-markdown-css/github-markdown.css'
-// 引入 prismjs 样式
-// import 'prismjs/themes/prism.css'
-// import 'prismjs/themes/prism-okaidia.css'
-import 'prismjs/themes/prism-tomorrow.css'
-// themes/prism-coy.css
-// themes/prism-dark.css
-// themes/prism-funky.css
-// themes/prism-okaidia.css
-// themes/prism-solarzedlight.css
-// themes/prism-tomorrow.css
-// themes/prism-twilight.css
-// themes/prism.css
 
 // language
 import 'codemirror/mode/vue/vue.js'
@@ -58,6 +45,50 @@ import 'codemirror/addon/selection/mark-selection.js'
 import 'codemirror/addon/search/searchcursor.js'
 
 const CodeMirror = window.CodeMirror || _CodeMirror
+// 在 pre 上添加 hljs 的样式
+Showdown.extension('hljs-style', function () {
+  return [{
+    type: 'output',
+    filter: function (source) {
+      return source.replace(/(<pre[^>]*>)?[\n\s]?<code([^>]*)>/gi, function (match, pre, codeClass) {
+        if (pre) {
+          return '<pre class="hljs"><code' + codeClass + '>'
+        } else {
+          return '<code' + codeClass + '>'
+        }
+      })
+    }
+  }]
+})
+
+// 设置 showdown 的 option
+Showdown.setOption('emoji', true)
+
+// 设置 # ## ### header 带有 id 参数
+Showdown.setOption('customizedHeaderId', true)
+// 配合上面的参数，会形成 header-xxx 的 id 头
+Showdown.setOption('prefixHeaderId', 'header-')
+
+Showdown.setOption('simpleLineBreaks', true)
+
+// 用来处理图片的尺寸
+Showdown.setOption('parseImgDimensions', true)
+
+// 在新窗口打开链接
+Showdown.setOption('openLinksInNewWindow', true)
+
+Showdown.setOption('metadata', true)
+
+// 自定义 github mentions
+Showdown.setOption('ghMentionsLink', 'https://github.com/nutsjian/{u}')
+
+const converter = new Showdown.Converter({
+  extensions: [showdownEmoji, showdownHighlight, 'hljs-style']
+})
+
+// 设置 github 偏好
+converter.setFlavor('github')
+
 export default {
   name: 'codemirrorstatic',
   data () {
@@ -68,8 +99,7 @@ export default {
       previewBotn: true,
       content: '',
       markedHtml: '',
-      previewMode: 1,
-      prismjsHtml: ''
+      previewMode: 1
     }
   },
   mounted () {
@@ -108,35 +138,6 @@ export default {
       }
     })
 
-    var renderer = new marked.Renderer()
-    renderer.code = function (code, lang) {
-      if (!Prism.languages[lang]) {
-        require('prismjs/components/prism-' + lang + '.js')
-      }
-      var codecode = Prism.highlight(code, Prism.languages[lang], lang)
-      return '<pre class="language-' + lang + '"><code class="language-' + lang + '">' + codecode + '</code></pre>'
-    }
-
-    // renderer.blockquote = function (code, lang) {
-    //   console.log(code)
-    //   return code
-    // }
-
-    marked.setOptions({
-      renderer: renderer,
-      gfm: true,
-      tables: true,
-      breaks: false,
-      pedantic: false,
-      sanitize: false,
-      smartLists: true,
-      smartypants: false,
-      langPrefix: 'language-'
-      // highlight: function (code, lang) {
-      //   return Prism.highlight(code, Prism.languages[lang], lang)
-      // }
-    })
-
     this.editor.on('change', cm => {
       const content = cm.getValue()
       if (!Object.is(content, this.content)) {
@@ -151,16 +152,10 @@ export default {
         }
       }
     })
-
-    // 初始化 Prism
-    // Prism.loadLanguages('*')
-
-    var code = 'public void add(int a, int b) { return a + b; }'
-    this.prismjsHtml = Prism.highlight(code, Prism.languages.java)
   },
   methods: {
     parseMarked () {
-      this.markedHtml = marked(this.content || '')
+      this.markedHtml = converter.makeHtml(this.content || '')
     }
   }
 }
@@ -305,7 +300,8 @@ export default {
       /deep/ pre {
         margin-bottom: 1em;
         border-radius: 0;
-        font-size: 16px;
+        font-size: 14px;
+        background-color: #282c34;
       }
     }
   }

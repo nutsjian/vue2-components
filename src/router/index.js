@@ -13,6 +13,7 @@ import NestedScopedTest2 from '@/views/base/NestedScopedTest2'
 // code mirror
 import CodeMirrorStatic from '@/views/codemirror/CodeMirrorStatic'
 import CodeMirrorMarkdown from '@/views/codemirror/CodeMirrorMarkdown'
+import CodeMirrorShowdown from '@/views/codemirror/CodeMirrorShowdown'
 // components
 
 Vue.use(Router)
@@ -27,6 +28,7 @@ export default new Router({
     { path: '/base/nestedscopedtest2', name: 'nestedscopedtest2', component: NestedScopedTest2 },
     // code mirror
     { path: '/codemirror/static', name: 'codemirrorstatic', component: CodeMirrorStatic },
-    { path: '/codemirror/markdown', name: 'codemirrormarkdown', component: CodeMirrorMarkdown }
+    { path: '/codemirror/markdown', name: 'codemirrormarkdown', component: CodeMirrorMarkdown },
+    { path: '/codemirror/showdown', name: 'codemirrorshowdown', component: CodeMirrorShowdown }
   ]
 })
