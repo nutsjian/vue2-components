@@ -17,6 +17,7 @@
     "codemirror": "^5.36.0",
     "marked": "^0.3.17",
     "patternfly": "^3.42.0",
+    "prismjs": "^1.13.0",
     "vue": "^2.5.2",
     "vue-router": "^3.0.1"
   },

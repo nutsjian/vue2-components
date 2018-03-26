@@ -16,14 +16,12 @@
 import _CodeMirror from 'codemirror'
 import marked from 'marked'
 import Prism from 'prismjs'
-import 'prismjs/components/prism-java.js'
 
 // 引入codemirror 样式
 import 'codemirror/lib/codemirror.css'
 
 // 引入 prismjs 样式
 import 'prismjs/themes/prism.css'
-import 'prismjs/themes/prism-okaidia.css'
 // themes/prism-coy.css
 // themes/prism-dark.css
 // themes/prism-funky.css
@@ -102,19 +100,8 @@ export default {
       }
     })
 
-    var renderer = new marked.Renderer()
-    // renderer.code = function (code, lang) {
-    //   var codecode = Prism.highlight(code, Prism.languages[lang], lang)
-    //   return '<pre class="language-' + lang + '"><code class="language-' + lang + '">' + codecode + '</code></pre>'
-    // }
-
-    renderer.blockquote = function (code, lang) {
-      console.log(code)
-      return code
-    }
-
     marked.setOptions({
-      renderer: renderer,
+      renderer: new marked.Renderer(),
       gfm: true,
       tables: true,
       breaks: false,
@@ -122,9 +109,9 @@ export default {
       sanitize: false,
       smartLists: true,
       smartypants: false,
-      langPrefix: 'language-',
       highlight: function (code, lang) {
         return Prism.highlight(code, Prism.languages[lang], lang)
+        // console.log(code)
       }
     })
 
@@ -143,15 +130,14 @@ export default {
       }
     })
 
-    // 初始化 Prism
-    // Prism.loadLanguages('*')
-
-    var code = 'public void add(int a, int b) { return a + b; }'
-    this.prismjsHtml = Prism.highlight(code, Prism.languages.java)
+    // 测试 prismjs
+    var code = 'var data = 1;'
+    this.prismjsHtml = Prism.highlight(code, Prism.languages.javascript)
   },
   methods: {
     parseMarked () {
-      this.markedHtml = marked(this.content || '')
+      this.markedHtml = marked(this.content)
+      // console.log(this.markedHtml)
     }
   }
 }
@@ -303,6 +289,16 @@ export default {
 
       /deep/ pre {
         margin-bottom: 1em;
+
+        > code {
+          margin: 0;
+          padding: 1em;
+          line-height: 1.6em;
+          background-color: rgba(0, 0, 0, 0.8);
+          position: relative;
+          display: block;
+          color: rgba(255, 255, 255, 0.87);
+        }
       }
     }
   }
