@@ -1,8 +1,36 @@
 <template>
   <div class="markdown-editor">
     <div class="editor-toolbar">
+      <span class="editor-toolbar__formats">
+        <button type="button" @click="drawH1()"><span class="iconfont icon-h1"></span></button>
+        <button type="button" @click="drawH2()"><span class="iconfont icon-h2"></span></button>
+        <button type="button" @click="drawH3()"><span class="iconfont icon-h3"></span></button>
+        <button type="button" @click="drawH4()"><span class="iconfont icon-h4"></span></button>
+        <button type="button" @click="drawH5()"><span class="iconfont icon-h5"></span></button>
+        <button type="button"><span class="iconfont icon-clear"></span></button>
+        <button type="button" @click="toggleBold()"><span class="iconfont icon-bold"></span></button>
+        <button type="button" @click="toggleItalic()"><span class="iconfont icon-italic"></span></button>
+        <button type="button" @click="drawLink()"><span class="iconfont icon-link"></span></button>
+        <button type="button"><span class="iconfont icon-unlink"></span></button>
+        <button type="button" @click="toggleDeleteLine()"><span class="iconfont icon-delline"></span></button>
+        <button type="button"><span class="iconfont icon-underline"></span></button>
+        <button type="button" @click="drawCode()"><span class="iconfont icon-code"></span></button>
+        <button type="button" @click="drawQuote()"><span class="iconfont icon-blockquote"></span></button>
+        <button type="button"><span class="iconfont icon-video"></span></button>
+        <button type="button" @click="drawImage()"><span class="iconfont icon-image"></span></button>
+        <button type="button"><span class="iconfont icon-brush"></span></button>
+        <button type="button" @click="drawHr()"><span class="iconfont icon-hr"></span></button>
+        <button type="button" @click="redo()"><span class="iconfont icon-redo"></span></button>
+        <button type="button" @click="undo()"><span class="iconfont icon-undo"></span></button>
+      </span>
+      <span class="editor-toolbar__formats">
+        <button type="button" @click="wordCount()"><span class="iconfont icon-mode-edit"></span></button>
+        <button type="button" @click="goEdit()" :class="[previewMode === 3 ? 'muted' : '']"><span class="iconfont icon-mode-edit"></span></button>
+        <button type="button" @click="goLive()" :class="[previewMode === 1 ? 'muted' : '']"><span class="iconfont icon-mode-live"></span></button>
+        <button type="button" @click="goPreview()" :class="[previewMode === 2 ? 'muted' : '']"><span class="iconfont icon-mode-preview"></span></button>
+      </span>
     </div>
-    <div class="editor-content" :class="previewBotn ? 'preview-both' : ''">
+    <div class="editor-content" :class="{'preview-full': previewMode === 2, 'preview-both': previewMode === 1}">
       <div class="editor">
         <textarea ref="textarea" v-model="code"></textarea>
       </div>
@@ -96,9 +124,11 @@ export default {
     return {
       code,
       editor: null,
+      cm: null,
       previewBotn: true,
       content: '',
       markedHtml: '',
+      // 1 实况模式 2 预览模式 3 编辑模式
       previewMode: 1
     }
   },
@@ -110,7 +140,7 @@ export default {
       // 自动验证错误
       matchBrackets: true,
       // 是否换行
-      lineWrapping: false,
+      lineWrapping: true,
       // 自动补全括号
       autoCloseBrackets: true,
       // 自动闭合标签
@@ -138,6 +168,8 @@ export default {
       }
     })
 
+    this.cm = this.editor.codemirror
+
     this.editor.on('change', cm => {
       const content = cm.getValue()
       if (!Object.is(content, this.content)) {
@@ -156,17 +188,390 @@ export default {
   methods: {
     parseMarked () {
       this.markedHtml = converter.makeHtml(this.content || '')
+    },
+    drawH1 () {
+      this._drawHH('#')
+    },
+    drawH2 () {
+      this._drawHH('##')
+    },
+    drawH3 () {
+      this._drawHH('###')
+    },
+    drawH4 () {
+      this._drawHH('####')
+    },
+    drawH5 () {
+      this._drawHH('#####')
+    },
+    _drawHH (flags) {
+      var startPoint = this.editor.getCursor('start')
+      var text = this.editor.getLine(startPoint.line)
+      if (text.startsWith(flags)) {
+        text = text.substr((flags + ' ').length)
+      } else {
+        text = flags + ' ' + text
+      }
+      this.editor.replaceRange(text, {line: startPoint.line, ch: 0}, {line: startPoint.line + 1, ch: 0})
+      this.editor.focus()
+    },
+    drawCode () {
+      var pos = this.editor.getCursor()
+      var stat = this.getState(pos)
+      this._replaceSelection(this.editor, stat.code, '```java\n', '\n```')
+    },
+    drawQuote () {
+      var pos = this.editor.getCursor()
+      var stat = this.getState(pos)
+      this._replaceSelection(this.editor, stat.quote, '> ', '\n')
+    },
+    drawImage () {
+      var pos = this.editor.getCursor()
+      var stat = this.getState(pos)
+      this._replaceSelection(this.editor, stat.image, '![](', ')')
+    },
+    drawLink () {
+      var pos = this.editor.getCursor()
+      var stat = this.getState(pos)
+      this._replaceSelection(this.editor, stat.link, '[', '](https://)')
+    },
+    toggleBold () {
+      var stat = this.getState()
+      var text = '加粗文字'
+      var start = '**'
+      var end = '**'
+      var startPoint, endPoint, curPoint
+      if (this.editor.getSelection()) {
+        startPoint = this.editor.getCursor('from')
+        endPoint = this.editor.getCursor('to')
+      } else {
+        // 没有选中
+        curPoint = this.editor.getCursor()
+      }
+      if (stat.bold) {
+        if (curPoint || this.editor.getRange({line: startPoint.line, ch: startPoint.ch - 2}, startPoint) !== '**' || this.editor.getRange(endPoint, {line: endPoint.line, ch: endPoint.ch + 2}) !== '**') {
+          // 没有选中，或选中的不全
+          return
+        } else {
+          text = this.editor.getSelection()
+          startPoint.ch -= 2
+          endPoint.ch += 2
+          this.editor.replaceRange(text, startPoint, endPoint)
+          endPoint.ch -= 4
+        }
+      } else {
+        var _text = this.editor.getSelection() || text
+        this.editor.replaceSelection(start + _text + end)
+        if (curPoint) {
+          startPoint = { line: curPoint.line, ch: curPoint.ch + 2 }
+          endPoint = { line: curPoint.line, ch: curPoint.ch + 6 }
+        } else {
+          startPoint.ch += 2
+          endPoint.ch += 2
+        }
+      }
+
+      this.editor.setSelection(startPoint, endPoint)
+      this.editor.focus()
+    },
+    toggleItalic () {
+      var stat = this.getState()
+      var text = '斜体文字'
+      var start = '*'
+      var end = '*'
+      var startPoint
+      var endPoint
+      var curPoint
+      if (this.editor.getSelection()) {
+        // 有选中
+        startPoint = this.editor.getCursor('from')
+        endPoint = this.editor.getCursor('to')
+      } else {
+        // 没有选中
+        curPoint = this.editor.getCursor()
+      }
+      if (stat.italic) {
+        if (curPoint || this.editor.getRange({line: startPoint.line, ch: startPoint.ch - 1}, startPoint) !== '*' || this.editor.getRange(endPoint, {line: endPoint.line, ch: endPoint.ch + 1}) !== '*') {
+          // 没有选中或选中的不全
+          return
+        } else {
+          text = this.editor.getSelection()
+          startPoint.ch -= 1
+          endPoint.ch += 1
+          this.editor.replaceRange(text, startPoint, endPoint)
+          endPoint.ch -= 2
+        }
+      } else {
+        var _text = this.editor.getSelection() || text
+        this.editor.replaceSelection(start + _text + end)
+        if (curPoint) {
+          startPoint = {line: curPoint.line, ch: curPoint.ch + 1}
+          endPoint = {line: curPoint.line, ch: curPoint.ch + 5}
+        } else {
+          startPoint.ch += 1
+          endPoint.ch += 1
+        }
+      }
+      this.editor.setSelection(startPoint, endPoint)
+      this.editor.focus()
+    },
+    toggleDeleteLine () {
+      var stat = this.getState()
+      console.log(stat)
+      // var text = '删除文字'
+      // var start = '~~'
+      // var end = '~~'
+      // var startPoint
+      // var endPoint
+      // var curPoint
+      // if (this.editor.getSelection()) {
+      //   // 有选中
+      //   startPoint = this.editor.getCursor('from')
+      //   endPoint = this.editor.getCursor('to')
+      // } else {
+      //   // 没有选中
+      //   curPoint = this.editor.getCursor()
+      // }
+      // if (stat.italic) {
+      //   if (curPoint || this.editor.getRange({line: startPoint.line, ch: startPoint.ch - 1}, startPoint) !== '*' || this.editor.getRange(endPoint, {line: endPoint.line, ch: endPoint.ch + 1}) !== '*') {
+      //     // 没有选中或选中的不全
+      //     return
+      //   } else {
+      //     text = this.editor.getSelection()
+      //     startPoint.ch -= 1
+      //     endPoint.ch += 1
+      //     this.editor.replaceRange(text, startPoint, endPoint)
+      //     endPoint.ch -= 2
+      //   }
+      // } else {
+      //   var _text = this.editor.getSelection() || text
+      //   this.editor.replaceSelection(start + _text + end)
+      //   if (curPoint) {
+      //     startPoint = {line: curPoint.line, ch: curPoint.ch + 1}
+      //     endPoint = {line: curPoint.line, ch: curPoint.ch + 5}
+      //   } else {
+      //     startPoint.ch += 1
+      //     endPoint.ch += 1
+      //   }
+      // }
+      // this.editor.setSelection(startPoint, endPoint)
+      // this.editor.focus()
+    },
+    _toggleLine () {
+      var stat = this.getState()
+      var startPoint = this.editor.getCursor('start')
+      var endPoint = this.editor.getCursor('end')
+      var that = this
+      var repl = {
+        quote: /^(\s*)>\s+/,
+        code: /^(\s*)```\n\s+/,
+        header: /^(\s*)##/,
+        'unordered-list': /^(\s*)(\*|-|\+)\s+/,
+        'ordered-list': /^(\s*)\d+\.\s+/
+      }
+      var map = {
+        quote: '> ',
+        code: '```\n\n```',
+        header: '##标题##',
+        'unordered-list': '* ',
+        'ordered-list': '1. '
+      }
+      for (var i = startPoint.line; i <= endPoint.line; i++) {
+        (function (i) {
+          var text = that.editor.getLine(i)
+          if (stat[name]) {
+            text = text.replace(repl[name], '$1')
+          } else {
+            text = map[name] + text
+          }
+          that.editor.replaceRange(text, {line: i, ch: 0}, {line: i + 1, ch: 0})
+        })(i)
+      }
+      this.editor.focus()
+    },
+    _replaceSelection (cm, active, start, end) {
+      var text
+      var startPoint = cm.getCursor('start')
+      var endPoint = cm.getCursor('end')
+      if (active) {
+        text = cm.getLine(startPoint.line)
+        start = text.slice(0, startPoint.ch)
+        end = text.slice(startPoint.ch)
+        cm.setLine(startPoint.line, start + end)
+      } else {
+        text = cm.getSelection()
+        cm.replaceSelection(start + text + end)
+        startPoint.ch += start.length
+        endPoint.ch += start.length
+      }
+      cm.setSelection(startPoint, endPoint)
+      cm.focus()
+    },
+    drawHr () {
+      var cursor = this.editor.getCursor()
+      this.editor.replaceRange('\n\n----------\n\n', cursor)
+      this.editor.setCursor({line: cursor.line + 4, ch: 0})
+      this.editor.focus()
+    },
+    undo () {
+      this.editor.undo()
+      this.editor.focus()
+    },
+    redo () {
+      this.editor.redo()
+      this.editor.focus()
+    },
+    goLive () {
+      var wrapper = this.editor.getWrapperElement()
+      var preview = wrapper.lastChild
+      console.log(preview)
+      this.previewMode = 1
+    },
+    goEdit () {
+      this.previewMode = 3
+    },
+    goPreview () {
+      this.previewMode = 2
+    },
+    getState (pos) {
+      pos = pos || this.editor.getCursor('start')
+      var stat = this.editor.getTokenAt(pos)
+      console.log(stat)
+      if (!stat.type || stat.type.split) {
+        return {}
+      } else {
+        var types = stat.type.split(' ')
+        var ret = {}
+        var data
+        var text
+        for (var i = 0; i < types.length; i++) {
+          if (data === 'strong') {
+            ret.bold = true
+          } else if (data === 'variable-2') {
+            text = this.cm.getLine(pos.line)
+            if (/^\s*\d+\.\s/.test(text)) {
+              ret['ordered-list'] = true
+            } else {
+              ret['unordered-list'] = true
+            }
+          } else if (data === 'quote') {
+            ret.quote = true
+          } else {
+            ret.italic = true
+          }
+        }
+        return ret
+      }
+    },
+    wordCount () {
+      var data = this.editor.getValue()
+      var pattern = /[a-zA-Z0-9_\u0392-\u03c9]+|[\u4E00-\u9FFF\u3400-\u4dbf\uf900-\ufaff\u3040-\u309f\uac00-\ud7af]+/g
+      var m = data.match(pattern)
+      var count = 0
+      if (m === null) {
+        return count
+      }
+      for (var i = 0; i < m.length; i++) {
+        if (m[i].charCodeAt(0) >= 0x4E00) {
+          count += m[i].length
+        } else {
+          count += 1
+        }
+      }
+      console.log(count)
+      return count
     }
   }
 }
 </script>
 <style lang="scss" scoped>
+.ve-snow, .ve-stroke {
+  fill: none;
+  stroke: #444;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2;
+}
 .markdown-editor {
+  width: 1024px;
+
+  .editor-toolbar {
+    border: 1px solid #ccc;
+    box-sizing: border-box;
+    font-family: Helvetica Neue,Helvetica,Arial,sans-serif;
+    padding: 8px;
+
+    .editor-toolbar__formats {
+      margin-right: 15px;
+      display: inline-block;
+      vertical-align: middle;
+      box-sizing: border-box;
+
+      & button {
+        background: none;
+        border: none;
+        cursor: pointer;
+        display: inline-block;
+        float: left;
+        height: 26px;
+        padding: 3px 5px;
+        width: 30px;
+        box-sizing: border-box;
+        outline: none;
+
+        svg {
+          float: left;
+          width: 100%;
+        }
+
+        & span {
+          font-size: 20px;
+          width: 20px;
+          height: 20px;
+          line-height: 20px;
+          color: #333;
+          color: #5a5858;
+
+          &:hover {
+            color: #06c;
+          }
+        }
+
+        & span.icon-link,
+        & span.icon-unlink
+         {
+          font-size: 22px;
+          font-weight: bold;
+        }
+
+        & span.icon-delline,
+        & span.icon-underline {
+          font-size: 22px;
+        }
+
+      }
+
+      & button.muted {
+        cursor: default;
+
+        & span {
+          color: #c7c7c7;
+          &:hover {
+            color: #c7c7c7;
+          }
+        }
+      }
+    }
+  }
+
   .editor-content {
     position: relative;
     overflow: hidden;
     height: 100%;
     width: 100%;
+    border-bottom: 1px solid #ccc;
+    border-left: 1px solid #ccc;
+    border-right: 1px solid #ccc;
 
     &.preview-full {
 
@@ -211,6 +616,7 @@ export default {
       left: 100%;
       width: 100%;
       height: 100%;
+      background-color: #f6f6f6;
       position: absolute;
       top: 0;
       overflow: auto;

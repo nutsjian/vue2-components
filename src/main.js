@@ -7,6 +7,7 @@ import router from './router'
 // 引入全局样式
 import '@/assets/scss/framework.scss'
 import '@/assets/scss/variables.scss'
+import '@/assets/scss/icon.scss'
 
 Vue.config.productionTip = false
 // Vue.directive('banzi', {
